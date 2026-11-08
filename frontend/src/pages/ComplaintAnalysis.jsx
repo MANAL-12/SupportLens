@@ -1,4 +1,4 @@
-
+import API_BASE_URL from '../api'
 import { useState } from 'react'
 import {
   BrainCircuit,
@@ -27,7 +27,7 @@ function ComplaintAnalysis() {
 
     try {
       const response = await fetch(
-        'http://127.0.0.1:8000/api/complaints/analyze',
+        `${API_BASE_URL}/api/complaints/analyze`,
         {
           method: 'POST',
           headers: {

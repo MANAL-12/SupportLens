@@ -1,4 +1,4 @@
-
+import API_BASE_URL from '../api'
 import { useEffect, useState } from 'react'
 import {
   Search,
@@ -29,7 +29,7 @@ function ComplaintExplorer() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/complaints/categories')
+    fetch(`${API_BASE_URL}/api/complaints/categories`)
       .then(res => {
         if (!res.ok) throw new Error('Unable to load categories')
         return res.json()
@@ -55,7 +55,7 @@ function ComplaintExplorer() {
         })
 
         const response = await fetch(
-          `http://127.0.0.1:8000/api/complaints?${params}`,
+          `${API_BASE_URL}/api/complaints?${params}`,
           { signal: controller.signal }
         )
 

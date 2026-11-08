@@ -1,4 +1,4 @@
-
+import API_BASE_URL from '../api'
 import { useEffect, useState } from 'react'
 import {
   Database,
@@ -82,8 +82,8 @@ function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         const [statsResponse, categoriesResponse] = await Promise.all([
-          fetch('http://127.0.0.1:8000/api/dashboard/stats'),
-          fetch('http://127.0.0.1:8000/api/dashboard/categories'),
+          fetch(`${API_BASE_URL}/api/dashboard/stats`),
+          fetch(`${API_BASE_URL}/api/dashboard/categories`),
         ])
 
         if (!statsResponse.ok || !categoriesResponse.ok) {
