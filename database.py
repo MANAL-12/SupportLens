@@ -1,7 +1,6 @@
 
 import os
 from datetime import date
-from sqlalchemy.orm import Session
 
 from dotenv import load_dotenv
 from sqlalchemy import (
@@ -15,25 +14,55 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
-    func
+    func,
+    text
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import (
+    Session,
+    DeclarativeBase,
+    Mapped,
+    mapped_column
+)
 
 # Load environment variables
 load_dotenv()
 
-# Database configuration
-database_url = URL.create(
-    drivername="postgresql+psycopg",
-    username=os.getenv("PG_USER"),
-    password=os.getenv("PG_PASSWORD"),
-    host=os.getenv("PG_HOST"),
-    port=int(os.getenv("PG_PORT")),
-    database=os.getenv("PG_DATABASE")
-)
+# Database configuration: hosted PostgreSQL or local PostgreSQL
+database_url = os.getenv("DATABASE_URL")
 
-# Create database engine
-engine = create_engine(database_url)
+if database_url:
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace(
+            "postgresql://",
+            "postgresql+psycopg://",
+            1
+        )
+    elif database_url.startswith("postgres://"):
+        database_url = database_url.replace(
+            "postgres://",
+            "postgresql+psycopg://",
+            1
+        )
+
+    engine = create_engine(
+        database_url,
+        pool_pre_ping=True
+    )
+
+else:
+    database_url = URL.create(
+        drivername="postgresql+psycopg",
+        username=os.getenv("PG_USER"),
+        password=os.getenv("PG_PASSWORD"),
+        host=os.getenv("PG_HOST"),
+        port=int(os.getenv("PG_PORT", "5432")),
+        database=os.getenv("PG_DATABASE")
+    )
+
+    engine = create_engine(
+        database_url,
+        pool_pre_ping=True
+    )
 
 
 # Base class for database models
@@ -46,7 +75,9 @@ class Complaint(Base):
     __tablename__ = "complaints"
 
     complaint_id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True
+        BigInteger,
+        primary_key=True,
+        autoincrement=True
     )
     product: Mapped[str | None] = mapped_column(String(255))
     issue: Mapped[str | None] = mapped_column(String(500))
@@ -56,17 +87,20 @@ class Complaint(Base):
     company_response: Mapped[str | None] = mapped_column(String(255))
     company_public_response: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(
-    String(30),
-    nullable=False,
-    default="CFPB"
+        String(30),
+        nullable=False,
+        default="CFPB"
     )
+
 
 # Table 2: Predictions
 class Prediction(Base):
     __tablename__ = "predictions"
 
     prediction_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+        Integer,
+        primary_key=True,
+        autoincrement=True
     )
     complaint_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -74,12 +108,14 @@ class Prediction(Base):
         nullable=False
     )
     predicted_category: Mapped[str] = mapped_column(
-        String(500), nullable=False
+        String(500),
+        nullable=False
     )
     prediction_confidence: Mapped[float | None] = mapped_column(Float)
     actual_category: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[object] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True),
+        server_default=func.now()
     )
 
 
@@ -88,7 +124,9 @@ class Summary(Base):
     __tablename__ = "summaries"
 
     summary_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+        Integer,
+        primary_key=True,
+        autoincrement=True
     )
     complaint_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -96,13 +134,16 @@ class Summary(Base):
         nullable=False
     )
     generated_summary: Mapped[str] = mapped_column(
-        Text, nullable=False
+        Text,
+        nullable=False
     )
     model_provider: Mapped[str] = mapped_column(
-        String(100), default="Google Gemini"
+        String(100),
+        default="Google Gemini"
     )
     generated_at: Mapped[object] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True),
+        server_default=func.now()
     )
 
 
@@ -123,8 +164,6 @@ def create_user_complaint(complaint_text, company=None):
         )
 
         session.add(new_complaint)
-
-        # Generate and retrieve the PostgreSQL ID
         session.flush()
 
         complaint_id = new_complaint.complaint_id
@@ -132,6 +171,7 @@ def create_user_complaint(complaint_text, company=None):
         session.commit()
 
         return complaint_id
+
 
 # Create all database tables
 def create_tables():
@@ -148,9 +188,8 @@ def create_tables():
 def test_connection():
     try:
         with engine.connect() as connection:
-            result = connection.execute(
-                func.version().select()
-            )
+            result = connection.execute(text("SELECT version()"))
+
             print("Database connection successful!")
             print(result.scalar())
 

@@ -18,12 +18,13 @@ load_dotenv(PROJECT_DIR / ".env")
 
 api_key = os.getenv("GEMINI_API_KEY")
 
-if not api_key:
-    raise ValueError("GEMINI_API_KEY was not found in the .env file.")
-
-client = genai.Client(
-    api_key=api_key,
-    http_options={"timeout": 15000}
+client = (
+    genai.Client(
+        api_key=api_key,
+        http_options={"timeout": 15000}
+    )
+    if api_key
+    else None
 )
 
 MODEL_NAME = "gemini-3.5-flash-lite"
@@ -100,7 +101,8 @@ def summarize_complaint(complaint_text):
     Complaint:
     {redacted_text}
     """
-
+    if client is None:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
     response = client.models.generate_content(
         model=MODEL_NAME,
         contents=prompt,

@@ -1,4 +1,6 @@
 
+import os
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -15,9 +17,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+# CORS configuration: local frontend + deployed frontend
+allowed_origins = ["http://localhost:5173"]
+
+frontend_url = os.getenv("FRONTEND_URL", "")
+
+if frontend_url:
+    allowed_origins.extend(
+        origin.strip().rstrip("/")
+        for origin in frontend_url.split(",")
+        if origin.strip()
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,27 +47,39 @@ class ComplaintRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "SupportLens API is running", "status": "success"}
+    return {
+        "message": "SupportLens API is running",
+        "status": "success"
+    }
 
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "SupportLens Backend"}
+    return {
+        "status": "healthy",
+        "service": "SupportLens Backend"
+    }
 
 
 @app.get("/api/database/health")
 def database_health():
     try:
         with engine.connect() as connection:
-            result = connection.execute(text("SELECT 1")).scalar_one()
+            result = connection.execute(
+                text("SELECT 1")
+            ).scalar_one()
 
         return {
             "status": "connected",
             "database": "supportlens_db",
             "test_query": result
         }
+
     except Exception:
-        raise HTTPException(status_code=500, detail="Database connection failed.")
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection failed."
+        )
 
 
 @app.get("/api/dashboard/stats")
@@ -77,8 +104,12 @@ def dashboard_stats():
             "macro_f1_score": 0.7283,
             "weighted_f1_score": 0.8154
         }
+
     except Exception:
-        raise HTTPException(status_code=500, detail="Unable to retrieve dashboard statistics.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve dashboard statistics."
+        )
 
 
 @app.get("/api/dashboard/categories")
@@ -86,7 +117,9 @@ def dashboard_categories():
     try:
         with engine.connect() as connection:
             results = connection.execute(text("""
-                SELECT product AS category, COUNT(*) AS complaint_count
+                SELECT
+                    product AS category,
+                    COUNT(*) AS complaint_count
                 FROM complaints
                 WHERE source = 'CFPB'
                 AND complaint_id <> 999999999999
@@ -95,11 +128,18 @@ def dashboard_categories():
             """)).mappings().all()
 
         return [
-            {"category": row["category"], "count": row["complaint_count"]}
+            {
+                "category": row["category"],
+                "count": row["complaint_count"]
+            }
             for row in results
         ]
+
     except Exception:
-        raise HTTPException(status_code=500, detail="Unable to retrieve category statistics.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve category statistics."
+        )
 
 
 # --------------------------------------------------
@@ -116,6 +156,7 @@ def get_complaints(
 ):
     try:
         conditions = ["c.complaint_id <> 999999999999"]
+
         params = {
             "limit": limit,
             "offset": (page - 1) * limit
@@ -145,6 +186,7 @@ def get_complaints(
         where_clause = " AND ".join(conditions)
 
         with engine.connect() as connection:
+
             total = connection.execute(
                 text(f"""
                     SELECT COUNT(*)
@@ -204,7 +246,10 @@ def get_complaints(
         }
 
     except Exception:
-        raise HTTPException(status_code=500, detail="Unable to retrieve complaints.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve complaints."
+        )
 
 
 @app.get("/api/complaints/categories")
@@ -214,7 +259,8 @@ def complaint_categories():
             results = connection.execute(text("""
                 SELECT DISTINCT category
                 FROM (
-                    SELECT COALESCE(p.predicted_category, c.product) AS category
+                    SELECT
+                        COALESCE(p.predicted_category, c.product) AS category
                     FROM complaints c
                     LEFT JOIN predictions p
                         ON c.complaint_id = p.complaint_id
@@ -226,7 +272,10 @@ def complaint_categories():
         return results
 
     except Exception:
-        raise HTTPException(status_code=500, detail="Unable to retrieve complaint categories.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve complaint categories."
+        )
 
 
 # --------------------------------------------------
@@ -235,10 +284,14 @@ def complaint_categories():
 
 @app.post("/api/complaints/analyze")
 def analyze_complaint(request: ComplaintRequest):
+
     complaint_text = request.complaint_text.strip()
 
     if not complaint_text:
-        raise HTTPException(status_code=400, detail="Complaint text cannot be empty.")
+        raise HTTPException(
+            status_code=400,
+            detail="Complaint text cannot be empty."
+        )
 
     try:
         complaint_id = create_user_complaint(
@@ -258,6 +311,7 @@ def analyze_complaint(request: ComplaintRequest):
                     allow_external_processing=True
                 )
                 summary_status = "generated"
+
             except Exception:
                 summary_status = "failed"
 
@@ -270,4 +324,7 @@ def analyze_complaint(request: ComplaintRequest):
         }
 
     except Exception:
-        raise HTTPException(status_code=500, detail="Unable to process the complaint.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to process the complaint."
+        )

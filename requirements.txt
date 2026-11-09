@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+python-dotenv
+joblib
+scikit-learn
+numpy
+scipy
+google-genai
